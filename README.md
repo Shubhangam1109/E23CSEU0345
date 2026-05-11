@@ -1,4 +1,4 @@
-# Priority Inbox Stage 2
+#  Campus Notification Microservices
 
 A React/Next.js frontend built to display all notifications and the top priority notifications from the evaluation API.
 
