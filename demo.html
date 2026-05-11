@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Priority Inbox - Notification System</title>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --secondary: #1e293b;
+            --accent: #0ea5e9;
+            --accent-alt: #06b6d4;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --info: #3b82f6;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --bg-hover: #1e293b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, #0a0e27 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .priority-inbox {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .inbox-header {
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid var(--border);
+            animation: slideDown 0.6s ease-out;
+        }
+
+        .header-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-alt) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .header-subtitle {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .controls-bar {
+            margin-bottom: 30px;
+            padding: 16px;
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            animation: slideUp 0.6s ease-out 0.1s both;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(14, 165, 233, 0.1);
+        }
+
+        .filter-btn.active {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-alt) 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .notifications-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+
+        .notification-card {
+            display: grid;
+            grid-template-columns: 4px 1fr;
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            cursor: pointer;
+            animation: slideUp 0.6s ease-out forwards;
+            opacity: 0;
+        }
+
+        .notification-card:nth-child(1) { animation-delay: 0.05s; }
+        .notification-card:nth-child(2) { animation-delay: 0.10s; }
+        .notification-card:nth-child(3) { animation-delay: 0.15s; }
+        .notification-card:nth-child(4) { animation-delay: 0.20s; }
+        .notification-card:nth-child(5) { animation-delay: 0.25s; }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .notification-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 1px var(--accent), 0 10px 15px rgba(0, 0, 0, 0.15);
+            transform: translateY(-4px);
+        }
+
+        .notification-card.priority-5 { --type-color: var(--error); }
+        .notification-card.priority-4 { --type-color: var(--warning); }
+        .notification-card.priority-3 { --type-color: var(--info); }
+        .notification-card.priority-2 { --type-color: var(--accent); }
+        .notification-card.priority-1 { --type-color: var(--success); }
+
+        .indicator-bar {
+            background: linear-gradient(180deg, var(--type-color) 0%, rgba(0,0,0,0.1) 100%);
+            width: 4px;
+        }
+
+        .card-content {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .rank-badge {
+            background: rgba(14, 165, 233, 0.2);
+            color: var(--accent);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .source {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+
+        .time {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .priority-score {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(14, 165, 233, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(14, 165, 233, 0.2);
+            flex-shrink: 0;
+        }
+
+        .score-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-alt) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .score-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .message {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .expanded-details {
+            display: grid;
+            gap: 16px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 12px;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .detail-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .priority-breakdown {
+            padding: 12px;
+            background: rgba(14, 165, 233, 0.1);
+            border-left: 3px solid var(--accent);
+            border-radius: 4px;
+        }
+
+        .breakdown-title {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .breakdown-formula {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            letter-spacing: 0.5px;
+        }
+
+        .card-footer {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background: rgba(14, 165, 233, 0.1);
+            border-color: var(--accent);
+        }
+
+        .expand-hint {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+
+        .inbox-footer {
+            padding: 20px;
+            background: rgba(30, 41, 59, 0.3);
+            border-top: 1px solid var(--border);
+            border-radius: 8px;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 640px) {
+            .header-title {
+                font-size: 1.8rem;
+            }
+
+            .card-header {
+                flex-direction: column;
+            }
+
+            .filter-group {
+                gap: 8px;
+            }
+
+            .filter-btn {
+                font-size: 0.8rem;
+                padding: 6px 12px;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="priority-inbox">
+        <header class="inbox-header">
+            <div class="header-content">
+                <h1 class="header-title">Priority Inbox</h1>
+                <p class="header-subtitle">Your top 10 most important notifications</p>
+            </div>
+        </header>
+
+        <div class="controls-bar">
+            <div class="filter-group">
+                <button class="filter-btn active">All (10)</button>
+                <button class="filter-btn">Unread (3)</button>
+                <button class="filter-btn">🔴 Alerts</button>
+                <button class="filter-btn">⚠️ Warnings</button>
+            </div>
+        </div>
+
+        <div class="notifications-list" id="notificationsList">
+            <div class="loading-state">
+                <p>Loading notifications from the API...</p>
+            </div>
+        </div>
+
+        <footer class="inbox-footer">
+            <div class="stats">
+                <span>Total: 10 | Showing: 5 (Demo)</span>
+                <span>Last updated: Just now</span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const apiUrl = '/api/notifications/priority';
+        const listEl = document.getElementById('notificationsList');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        const statsTotal = document.querySelector('.stats span:first-child');
+        const statsUpdated = document.querySelector('.stats span:last-child');
+
+        let notifications = [];
+        let activeFilter = 'All';
+
+        const formatTimeAgo = (timestamp) => {
+            if (!timestamp) return 'Unknown';
+            const now = Date.now();
+            const then = new Date(timestamp).getTime();
+            const diffSeconds = Math.max(0, Math.floor((now - then) / 1000));
+
+            if (diffSeconds < 60) return `${diffSeconds}s ago`;
+            const diffMinutes = Math.floor(diffSeconds / 60);
+            if (diffMinutes < 60) return `${diffMinutes}m ago`;
+            const diffHours = Math.floor(diffMinutes / 60);
+            if (diffHours < 24) return `${diffHours}h ago`;
+            const diffDays = Math.floor(diffHours / 24);
+            return `${diffDays}d ago`;
+        };
+
+        const getTypeMeta = (type) => {
+            const normalized = String(type || '').toLowerCase();
+            if (normalized.includes('alert')) return { icon: '🔴', priorityClass: 'priority-5' };
+            if (normalized.includes('warning')) return { icon: '⚠️', priorityClass: 'priority-4' };
+            if (normalized.includes('success')) return { icon: '✅', priorityClass: 'priority-2' };
+            return { icon: 'ℹ️', priorityClass: 'priority-3' };
+        };
+
+        const buildCard = (notif, index) => {
+            const { icon, priorityClass } = getTypeMeta(notif.Type || notif.type);
+            const priority = typeof notif.priority === 'number' ? notif.priority.toFixed(2) : '0.00';
+            const weight = notif.weight ?? notif.Weight ?? '—';
+            const resultValue = typeof notif.result === 'number' ? notif.result : notif.Result ?? 0;
+            const resultDisplay = `${Math.round(resultValue * 100)}%`;
+            const importance = notif.components?.weightedImportance?.toFixed(2) || '—';
+            const recency = notif.components?.recency?.toFixed(2) || '—';
+            const timeLabel = formatTimeAgo(notif.timestamp || notif.Timestamp || notif.Timestamp);
+            const typeLabel = notif.Type || notif.type || 'Info';
+            const source = notif.Source || notif.source || 'System';
+            const rank = index + 1;
+            const message = notif.Message || notif.message || 'No message provided.';
+            const read = notif.read === false || notif.read === undefined ? 'Unread' : 'Read';
+
+            return `
+                <div class="notification-card ${priorityClass}">
+                    <div class="indicator-bar"></div>
+                    <div class="card-content">
+                        <div class="card-header">
+                            <div class="header-left">
+                                <span class="icon">${icon}</span>
+                                <div class="header-info">
+                                    <span class="rank-badge">#${rank}</span>
+                                    <span class="source">${source}</span>
+                                    <span class="time">${timeLabel}</span>
+                                </div>
+                            </div>
+                            <div class="priority-score">
+                                <div class="score-value">${priority}</div>
+                                <div class="score-label">Priority</div>
+                            </div>
+                        </div>
+                        <p class="message">${message}</p>
+                        <div class="expanded-details" style="display: none;">
+                            <div class="details-grid">
+                                <div class="detail-item">
+                                    <span class="detail-label">Type</span>
+                                    <span class="detail-value">${typeLabel}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Status</span>
+                                    <span class="detail-value">${read}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Weight</span>
+                                    <span class="detail-value">${weight}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Result</span>
+                                    <span class="detail-value">${resultDisplay}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Importance</span>
+                                    <span class="detail-value">${importance}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Recency</span>
+                                    <span class="detail-value">${recency}</span>
+                                </div>
+                            </div>
+                            <div class="priority-breakdown">
+                                <div class="breakdown-title">Formula</div>
+                                <div class="breakdown-formula">(${weight} × ${resultDisplay}) + ${recency} = ${priority}</div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button class="action-btn">Mark as read</button>
+                            <button class="action-btn">Details</button>
+                            <span class="expand-hint">▶ Details</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        const updateStats = (count, total) => {
+            if (statsTotal) statsTotal.textContent = `Total: ${total} | Showing: ${count}`;
+            if (statsUpdated) statsUpdated.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+        };
+
+        const filterMatches = (notif) => {
+            if (activeFilter === 'All') return true;
+            if (activeFilter === 'Unread') return notif.read === false || notif.read === undefined;
+            if (activeFilter === 'Alerts') return String(notif.Type || notif.type || '').toLowerCase().includes('alert');
+            if (activeFilter === 'Warnings') return String(notif.Type || notif.type || '').toLowerCase().includes('warning');
+            return true;
+        };
+
+        const renderNotifications = () => {
+            const filtered = notifications.filter(filterMatches);
+
+            if (!filtered.length) {
+                listEl.innerHTML = `
+                    <div class="loading-state">
+                        <p>No notifications available for the selected filter.</p>
+                    </div>
+                `;
+                updateStats(0, notifications.length);
+                return;
+            }
+
+            listEl.innerHTML = filtered.map((notif, index) => buildCard(notif, index)).join('');
+            updateStats(filtered.length, notifications.length);
+
+            document.querySelectorAll('.notification-card').forEach(card => {
+                const details = card.querySelector('.expanded-details');
+                const hint = card.querySelector('.expand-hint');
+
+                card.addEventListener('click', () => {
+                    if (!details) return;
+                    const isHidden = details.style.display === 'none' || details.style.display === '';
+                    details.style.display = isHidden ? 'grid' : 'none';
+                    if (hint) {
+                        hint.textContent = isHidden ? '▼ Details' : '▶ Details';
+                    }
+                });
+            });
+        };
+
+        const fetchNotifications = async () => {
+            listEl.innerHTML = `
+                <div class="loading-state">
+                    <p>Fetching latest notifications...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Unable to fetch notifications');
+                }
+
+                notifications = Array.isArray(data.notifications) ? data.notifications : [];
+                renderNotifications();
+            } catch (error) {
+                console.error(error);
+                listEl.innerHTML = `
+                    <div class="loading-state">
+                        <p class="error">Unable to load notifications from the backend. Please try again.</p>
+                    </div>
+                `;
+                updateStats(0, 0);
+            }
+        };
+
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                activeFilter = btn.textContent.replace(/[^A-Za-z]/g, '');
+                renderNotifications();
+            });
+        });
+
+        fetchNotifications();
+    </script>
+</body>
+</html>
